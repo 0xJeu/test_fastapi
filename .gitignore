@@ -1,0 +1,9 @@
+__pycache__/
+.venv/
+.env
+*.log
+.DS_Store
+
+uv.lock
+.ruff_cache/*
+__pycache__/*
