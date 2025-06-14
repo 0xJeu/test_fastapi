@@ -21,7 +21,7 @@ target-version = "py38"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I"]
-ignore = []
+ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["fastapi_db"]

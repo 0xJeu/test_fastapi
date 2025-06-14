@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-from db import DatabaseManager
+from db.core import DatabaseManager
 
 # Configure logging for this script
 logging.basicConfig(
@@ -28,6 +28,7 @@ def clean_and_reinitialize(db_manager: DatabaseManager, args) -> bool:
     """Clean the existing database and reinitialize it."""
     # Check if database exists and has data
     users = db_manager.users.get_all_users()
+    products = db_manager.products.get_all_products()
     if users:
         if not args.force:
             logging.warning(
@@ -36,6 +37,16 @@ def clean_and_reinitialize(db_manager: DatabaseManager, args) -> bool:
             )
         else:
             logging.warning(f"🧹 Cleaning database with {len(users)} existing users")
+    if products:
+        if not args.force:
+            logging.warning(
+                f"🧹 Cleaning database with {len(products)} existing products - "
+                "this will delete all data!"
+            )
+        else:
+            logging.warning(
+                f"🧹 Cleaning database with {len(products)} existing products"
+            )
     else:
         logging.warning(
             "🧹 No existing database found - proceeding with initialization."
@@ -58,7 +69,8 @@ def clean_and_reinitialize(db_manager: DatabaseManager, args) -> bool:
 
     if success:
         logging.info("✅ Database cleaned and reinitialized successfully.")
-        logging.info("📊 Fresh sample data has been loaded.")
+        logging.info("📊 Fresh sample users have been loaded.")
+        logging.info("📊 Fresh sample products have been loaded.")
     else:
         logging.error("❌ Database cleaning failed.")
 
@@ -71,14 +83,22 @@ def check_database_status(db_manager: DatabaseManager) -> None:
 
     try:
         users = db_manager.users.get_all_users()
+        products = db_manager.products.get_all_products()
         if users:
             logging.info(f"📈 Database is active with {len(users)} users:")
             for user in users[:3]:  # Show first 3 users
                 logging.info(f"   - {user['name']} ({user['email']})")
             if len(users) > 3:
                 logging.info(f"   ... and {len(users) - 3} more users")
+        if products:
+            logging.info(f"📈 Database is active with {len(products)} products:")
+            for product in products[:3]:  # Show first 3 products
+                logging.info(f"   - {product['name']} ({product['description']})")
+            if len(products) > 3:
+                logging.info(f"   ... and {len(products) - 3} more products")
         else:
             logging.info("📭 Database is empty or not initialized.")
+
     except Exception as e:
         logging.error(f"❌ Could not connect to database: {e}")
 

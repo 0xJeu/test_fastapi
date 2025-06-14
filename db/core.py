@@ -1,55 +1,22 @@
+"""
+Core database module - imports and re-exports all database functionality.
+
+This module maintains backward compatibility by importing all classes
+from their respective modules and making them available as if they
+were defined in this file.
+"""
+
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import mysql.connector
 from dotenv import load_dotenv
 from mysql.connector import Error
 
-
-class UserCRUD:
-    def __init__(self, db_manager: "DatabaseManager"):
-        self.db_manager = db_manager
-
-    def create_user(self, name: str, email: str, password: str) -> bool:
-        """Create a new user in the database"""
-        query = "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)"
-        logging.info(f"Creating user: {name}, {email}, {password}")
-        return self.db_manager.execute_query(query, (name, email, password))
-
-    def get_user_by_id(self, user_id: int) -> Optional[Dict]:
-        """Get a user by their ID"""
-        query = "SELECT * FROM users WHERE id = %s"
-        logging.info(f"Getting user by ID: {user_id}")
-        return self.db_manager.fetch_one(query, (user_id,))
-
-    def get_user_by_email(self, email: str) -> Optional[Dict]:
-        """Get a user by their email"""
-        query = "SELECT * FROM users WHERE email = %s"
-        logging.info(f"Getting user by email: {email}")
-        return self.db_manager.fetch_one(query, (email,))
-
-    def get_all_users(self) -> List[Dict]:
-        """Get all users from the database"""
-        query = "SELECT * FROM users"
-        logging.info("Getting all users")
-        return self.db_manager.fetch_all(query)
-
-    def update_user(self, user_id: int, data: Dict[str, Any]) -> bool:
-        """Update a user's information"""
-        set_clause = ", ".join([f"{key} = %s" for key in data.keys()])
-        values = list(data.values())
-        values.append(user_id)
-
-        query = f"UPDATE users SET {set_clause} WHERE id = %s"
-        logging.info(f"Updating user: {user_id}, {data}")
-        return self.db_manager.execute_query(query, tuple(values))
-
-    def delete_user(self, user_id: int) -> bool:
-        """Delete a user from the database"""
-        query = "DELETE FROM users WHERE id = %s"
-        logging.info(f"Deleting user: {user_id}")
-        return self.db_manager.execute_query(query, (user_id,))
+from .posts import PostCRUD
+from .product import ProductCRUD
+from .users import UserCRUD
 
 
 class DatabaseManager:
@@ -67,6 +34,8 @@ class DatabaseManager:
         self.password = password
         self.database = database
         self.users = UserCRUD(self)  # Initialize UserCRUD
+        self.posts = PostCRUD(self)  # Initialize PostCRUD
+        self.products = ProductCRUD(self)  # Initialize ProductCRUD
 
     @classmethod
     def from_env(cls):
@@ -213,7 +182,37 @@ class DatabaseManager:
                     password VARCHAR(255) NOT NULL
                 )
                 """
-                load_db_data = """
+
+                create_posts_table = """
+                CREATE TABLE IF NOT EXISTS posts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    content TEXT NOT NULL,
+                    user_id INT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+                """
+
+                create_products_table = """
+                CREATE TABLE IF NOT EXISTS products (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT NOT NULL,
+                    price DECIMAL(10, 2) NOT NULL,
+                    quantity INT NOT NULL
+                )
+                """
+
+                load_posts_db_data = """
+                INSERT INTO posts (title, content, user_id) VALUES
+                    ('My Journey with FastAPI', 'John shares his experience building scalable APIs with FastAPI and the lessons learned along the way', 1),
+                    ('Designing User-Centric Databases', 'Jane discusses her approach to creating database schemas that prioritize user experience and performance', 2),
+                    ('Advanced Python Patterns I Use Daily', 'Bob reveals the Python techniques and patterns that have transformed his development workflow', 3),
+                    ('Building Modern Web Apps: My Story', 'Alice walks through her process of creating full-stack applications using cutting-edge technologies', 4),
+                    ('How I Secure My APIs', 'Charlie explains his comprehensive approach to API security and the tools he relies on', 1),
+                """
+
+                load_users_db_data = """
                 INSERT INTO users (name, email, password) VALUES
                     ('John Doe', 'john.doe@example.com', 
                      CONCAT(SUBSTRING(MD5(RAND()), 1, 8), 
@@ -232,8 +231,28 @@ class DatabaseManager:
                             SUBSTRING(MD5(RAND()), 1, 8)))
                 ON DUPLICATE KEY UPDATE name=VALUES(name);
                 """
+                load_products_db_data = """
+                INSERT INTO products (name, description, price, quantity) VALUES
+                    ('MacBook Pro 16 inch', 'Apple MacBook Pro with M3 chip, 16GB RAM, 512GB SSD', 2499.00, 25),
+                    ('Dell XPS 13', 'Ultra-portable laptop with Intel i7, 16GB RAM, 1TB SSD', 1299.00, 40),
+                    ('iPhone 15 Pro', 'Latest iPhone with A17 Pro chip, 128GB storage, Titanium design', 999.00, 75),
+                    ('Samsung Galaxy S24', 'Android flagship with 256GB storage and advanced camera system', 899.00, 60),
+                    ('Sony WH-1000XM5', 'Premium noise-canceling wireless headphones', 399.00, 120)
+                """
+                load_posts_db_data = """
+                INSERT INTO posts (title, content, user_id) VALUES
+                    ('My Journey with FastAPI', 'John shares his experience building scalable APIs with FastAPI and the lessons learned along the way', 1),
+                    ('Designing User-Centric Databases', 'Jane discusses her approach to creating database schemas that prioritize user experience and performance', 1),
+                    ('Advanced Python Patterns I Use Daily', 'Bob reveals the Python techniques and patterns that have transformed his development workflow', 3),
+                    ('Building Modern Web Apps: My Story', 'Alice walks through her process of creating full-stack applications using cutting-edge technologies', 4),
+                    ('How I Secure My APIs', 'Charlie explains his comprehensive approach to API security and the tools he relies on', 1)
+                """
                 cursor.execute(create_users_table)
-                cursor.execute(load_db_data)
+                cursor.execute(create_posts_table)
+                cursor.execute(create_products_table)
+                cursor.execute(load_users_db_data)
+                cursor.execute(load_products_db_data)
+                cursor.execute(load_posts_db_data)
                 connection.commit()  # Commit the transaction to save the data
 
                 logging.info("Database initialized successfully")
@@ -270,3 +289,7 @@ class DatabaseManager:
             if "connection" in locals() and connection.is_connected():
                 cursor.close()
                 connection.close()
+
+
+# Re-export for backward compatibility
+__all__ = ["DatabaseManager", "UserCRUD", "PostCRUD"]
